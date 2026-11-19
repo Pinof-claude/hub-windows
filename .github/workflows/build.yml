@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -27,9 +28,11 @@ jobs:
       - name: Selftest exe
         shell: pwsh
         run: |
-          $env:HUB_SELFTEST = "1"
-          $p = Start-Process dist/Hub/Hub.exe -Wait -PassThru -NoNewWindow
-          if ($p.ExitCode -ne 0) { exit 1 }
+          $env:HUB_SELFTEST = "$PWD\selftest.txt"
+          $p = Start-Process dist/Hub/Hub.exe -PassThru
+          if (-not $p.WaitForExit(120000)) { $p.Kill(); Write-Error "timeout"; exit 1 }
+          Get-Content selftest.txt
+          if ((Get-Content selftest.txt -Raw).Trim() -ne "OK") { exit 1 }
       - uses: actions/upload-artifact@v4
         with:
           name: Hub-windows
