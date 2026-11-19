@@ -1,0 +1,36 @@
+name: build-windows
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt pyinstaller==6.11.1 pytest==8.3.4
+      - name: Tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest -q
+      - name: Build exe
+        run: >
+          pyinstaller main.py --name Hub --noconfirm --windowed
+          --collect-all faster_whisper --collect-all ctranslate2
+          --hidden-import keyring.backends.Windows
+      - name: Selftest exe
+        shell: pwsh
+        run: |
+          $env:HUB_SELFTEST = "1"
+          $p = Start-Process dist/Hub/Hub.exe -Wait -PassThru -NoNewWindow
+          if ($p.ExitCode -ne 0) { exit 1 }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Hub-windows
+          path: dist/Hub
