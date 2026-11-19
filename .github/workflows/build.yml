@@ -5,6 +5,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -37,3 +40,13 @@ jobs:
         with:
           name: Hub-windows
           path: dist/Hub
+      - name: Publier release "latest"
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          Compress-Archive -Path dist/Hub/* -DestinationPath Hub-windows.zip
+          gh release view latest *> $null
+          if ($LASTEXITCODE -ne 0) { gh release create latest --title "Hub (dernière version)" --notes "Build automatique de main." --latest }
+          gh release upload latest Hub-windows.zip --clobber
